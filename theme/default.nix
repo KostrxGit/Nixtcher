@@ -40,6 +40,8 @@ in
       name = "Bibata-Modern-Amber";
       size = 24;
     };
+    targets.gtksourceview.enable = false;
+    targets.nixos-icons.enable = false;
   };
 
   # Marker file the `theme` script reads to know the current variant
