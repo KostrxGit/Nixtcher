@@ -1,4 +1,4 @@
-# Withcer NixOS
+# Witcher NixOS
 
 NixOS config for a ThinkPad X1 Yoga Gen 7: Niri, casino theme (light/dark), per-project dev shells, Claude Code agent workflow.
 
