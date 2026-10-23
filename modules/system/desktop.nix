@@ -1,15 +1,11 @@
 { pkgs, ... }:
 {
+  imports = [ ./greeter.nix ];
+
   programs.niri.enable = true;
 
-  # Text login screen → starts Niri
-  services.greetd = {
-    enable = true;
-    settings.default_session = {
-      command = "${pkgs.tuigreet}/bin/tuigreet --time --remember --asterisks --greeting 'The table is open' --cmd niri-session";
-      user = "greeter";
-    };
-  };
+  # Login screen: Noctalia greeter (see greeter.nix)
+  services.greetd.enable = true;
 
   # Audio
   security.rtkit.enable = true;
@@ -19,9 +15,8 @@
     pulse.enable = true;
   };
 
-  # Lock screen needs a PAM entry
-  security.pam.services.hyprlock = { };
   security.polkit.enable = true;
+  xdg.sounds.enable = true; # sound theme for Noctalia
 
   # Touchscreen, pen, touchpad
   services.libinput.enable = true;
@@ -45,6 +40,10 @@
 
   # Chrome, Electron apps and VS Code run natively on Wayland
   environment.sessionVariables.NIXOS_OZONE_WL = "1";
+
+  # KDE Connect with an Android phone: notifications, files, clipboard, remote input
+  # (opens ports 1714-1764 on the firewall; the daemon runs per user, see modules/home/apps.nix)
+  programs.kdeconnect.enable = true;
 
   services.gvfs.enable = true; # trash, mounts in Nautilus
   services.udisks2.enable = true;

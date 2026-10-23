@@ -1,4 +1,23 @@
 { pkgs, ... }:
+let
+  # Kaer Morhen boot screen: the wolf medallion and Vesna by her campfire, disk password
+  # in a glass field (theme/plymouth). If it ever fails to show, press Esc for the text prompt.
+  kaerMorhenPlymouth = pkgs.runCommand "kaer-morhen-plymouth" { } ''
+    dir=$out/share/plymouth/themes/kaer-morhen
+    mkdir -p $dir
+    cp ${../../theme/plymouth}/* $dir/
+    cat >$dir/kaer-morhen.plymouth <<EOF
+    [Plymouth Theme]
+    Name=Kaer Morhen
+    Description=Wolf medallion and a campfire
+    ModuleName=script
+
+    [script]
+    ImageDir=$dir
+    ScriptFile=$dir/kaer-morhen.script
+    EOF
+  '';
+in
 {
   boot = {
     loader = {
@@ -13,8 +32,12 @@
 
     kernelPackages = pkgs.linuxPackages_latest;
 
-    # Graphical boot + LUKS passphrase prompt (themed by Stylix)
-    plymouth.enable = true;
+    # Graphical boot + LUKS passphrase prompt
+    plymouth = {
+      enable = true;
+      theme = "kaer-morhen";
+      themePackages = [ kaerMorhenPlymouth ];
+    };
     initrd.systemd.enable = true;
     consoleLogLevel = 3;
     initrd.verbose = false;
@@ -32,4 +55,6 @@
     enable = true;
     interval = "monthly";
   };
+
+  stylix.targets.plymouth.enable = false; # replaced by the Kaer Morhen theme above
 }

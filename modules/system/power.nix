@@ -15,6 +15,11 @@
     };
   };
 
+  # Let users change the charge limit (`ranger travel` = 100% once, `ranger home` = 80%)
+  services.udev.extraRules = ''
+    SUBSYSTEM=="power_supply", KERNEL=="BAT0", RUN+="${pkgs.coreutils}/bin/chgrp users /sys%p/charge_control_end_threshold", RUN+="${pkgs.coreutils}/bin/chmod g+w /sys%p/charge_control_end_threshold"
+  '';
+
   services.logind.settings.Login = {
     HandleLidSwitch = "suspend";
     HandleLidSwitchExternalPower = "suspend";

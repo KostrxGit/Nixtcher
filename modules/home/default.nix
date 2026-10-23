@@ -2,10 +2,7 @@
 {
   imports = [
     ./niri.nix
-    ./bar.nix
-    ./launcher.nix
-    ./notifications.nix
-    ./lock.nix
+    ./noctalia.nix
     ./terminal.nix
     ./shell.nix
     ./git.nix
@@ -14,6 +11,12 @@
     ./scripts.nix
     ./folders.nix
     ./claude.nix
+    ./cheatsheet.nix
+    ./codex.nix
+    ./monitors.nix
+    ./witcher.nix
+    ./kaer-morhen.nix
+    ./sigurd.nix
   ];
 
   home = {
@@ -24,7 +27,7 @@
 
   programs.home-manager.enable = true;
 
-  # Restart changed user services (waybar, wallpaper) on every switch,
+  # Restart changed user services (Noctalia, monitor layout) on every switch,
   # so a theme change shows up immediately.
   systemd.user.startServices = "sd-switch";
 }

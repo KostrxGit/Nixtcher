@@ -10,8 +10,11 @@
   timeZone = "Europe/Copenhagen";
   keyboardLayout = "pl"; # Polish programmer layout
 
+  # Weather on the lock screen and in the control centre
+  city = "Sønderborg, Denmark";
+
   git = {
     personalEmail = "github.kostekgalant@gmail.com";
-    workEmail = "github.kostekgalant@gmail.com"; # used for repos under ~/code/work
+    workEmail = "CHANGE-ME@work.example"; # used for repos under ~/code/work
   };
 }

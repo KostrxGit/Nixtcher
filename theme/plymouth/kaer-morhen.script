@@ -1,0 +1,124 @@
+# Kaer Morhen boot screen (Plymouth script theme).
+# The wolf medallion breathes, Vesna meditates by a flickering campfire, and the disk
+# password goes into a glass field below. Sizes follow the screen height (4K-safe).
+
+W = Window.GetWidth();
+H = Window.GetHeight();
+cx = W / 2;
+
+Window.SetBackgroundTopColor(0.086, 0.110, 0.149);     # #161C26 night slate
+Window.SetBackgroundBottomColor(0.039, 0.059, 0.086);  # #0A0F16
+
+font = "DejaVu Sans 14";
+if (H >= 1800) {
+  font = "DejaVu Sans 26";
+}
+
+### MEDALLION ###
+
+med_size = Math.Int(H * 0.17);
+medallion.image = Image("medallion.png").Scale(med_size, med_size);
+medallion.sprite = Sprite(medallion.image);
+medallion.sprite.SetPosition(cx - med_size / 2, H * 0.30 - med_size / 2, 2);
+
+### CAMPFIRE ###
+
+fire_w = Math.Int(H * 0.30);
+fire_h = Math.Int(fire_w * 440 / 720);
+for (i = 0; i < 4; i++) {
+  fire.frames[i] = Image("fire-" + i + ".png").Scale(fire_w, fire_h);
+}
+fire.sprite = Sprite(fire.frames[0]);
+fire.sprite.SetPosition(cx - fire_w / 2, H * 0.58 - fire_h / 2, 2);
+
+tick = 0;
+fun refresh_callback () {
+  global.tick = global.tick + 1;
+  fire.sprite.SetImage(fire.frames[Math.Int(global.tick / 8) % 4]);
+  medallion.sprite.SetOpacity(0.82 + 0.18 * Math.Sin(global.tick * 0.04));
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+### PASSWORD ###
+
+entry_w = Math.Int(H * 0.36);
+entry_h = Math.Int(H * 0.04);
+entry_y = H * 0.78;
+entry.image = Image("entry.png").Scale(entry_w, entry_h);
+bullet_size = Math.Int(entry_h * 0.34);
+bullet.image = Image("bullet.png").Scale(bullet_size, bullet_size);
+
+prompt = null;
+entry.sprite = null;
+bullets = null;
+
+fun password_callback (prompt_text, bullet_count) {
+  global.prompt.image = Image.Text(prompt_text, 0.871, 0.898, 0.933, 1, font);
+  global.prompt.sprite = Sprite(global.prompt.image);
+  global.prompt.sprite.SetPosition(cx - global.prompt.image.GetWidth() / 2,
+                                   entry_y - global.prompt.image.GetHeight() * 1.6, 3);
+
+  global.entry.sprite = Sprite(entry.image);
+  global.entry.sprite.SetPosition(cx - entry_w / 2, entry_y, 3);
+
+  global.bullets = null;
+  shown = bullet_count;
+  if (shown > 20) {
+    shown = 20;
+  }
+  gap = bullet_size * 0.7;
+  total = shown * bullet_size + (shown - 1) * gap;
+  start_x = cx - total / 2;
+  for (i = 0; i < shown; i++) {
+    global.bullets[i].sprite = Sprite(bullet.image);
+    global.bullets[i].sprite.SetPosition(start_x + i * (bullet_size + gap),
+                                         entry_y + (entry_h - bullet_size) / 2, 4);
+  }
+}
+Plymouth.SetDisplayPasswordFunction(password_callback);
+
+### QUESTION ###
+
+question = null;
+answer = null;
+
+fun question_callback (prompt_text, entry_text) {
+  global.question.image = Image.Text(prompt_text, 0.871, 0.898, 0.933, 1, font);
+  global.question.sprite = Sprite(global.question.image);
+  global.question.sprite.SetPosition(cx - global.question.image.GetWidth() / 2,
+                                     entry_y - global.question.image.GetHeight() * 1.6, 3);
+  global.answer.image = Image.Text(entry_text, 0.871, 0.898, 0.933, 1, font);
+  global.answer.sprite = Sprite(global.answer.image);
+  global.answer.sprite.SetPosition(cx - global.answer.image.GetWidth() / 2, entry_y, 3);
+}
+Plymouth.SetDisplayQuestionFunction(question_callback);
+
+### MESSAGES ###
+
+message = null;
+
+fun message_callback (text) {
+  global.message.image = Image.Text(text, 0.604, 0.690, 0.788, 1, font);
+  global.message.sprite = Sprite(global.message.image);
+  global.message.sprite.SetPosition(cx - global.message.image.GetWidth() / 2, H * 0.90, 3);
+}
+Plymouth.SetMessageFunction(message_callback);
+
+### NORMAL / QUIT ###
+
+fun normal_callback () {
+  global.prompt = null;
+  global.entry.sprite = null;
+  global.bullets = null;
+  global.question = null;
+  global.answer = null;
+  global.message = null;
+}
+Plymouth.SetDisplayNormalFunction(normal_callback);
+
+fun quit_callback () {
+  global.prompt = null;
+  global.entry.sprite = null;
+  global.bullets = null;
+}
+Plymouth.SetQuitFunction(quit_callback);

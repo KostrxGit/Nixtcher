@@ -10,6 +10,12 @@
     gnome-calculator
   ];
 
+  # KDE Connect daemon + tray icon (pair the phone from the tray or `kdeconnect-app`)
+  services.kdeconnect = {
+    enable = true;
+    indicator = true;
+  };
+
   xdg.mimeApps = {
     enable = true;
     defaultApplications = {

@@ -1,6 +1,6 @@
 # Witcher NixOS
 
-NixOS config for a ThinkPad X1 Yoga Gen 7: Niri, casino theme (light/dark), per-project dev shells, Claude Code agent workflow.
+NixOS config for a ThinkPad X1 Yoga Gen 7: Niri + Noctalia, Witcher theme with liquid glass (night / snow), per-project dev shells, Claude Code agent workflow.
 
 Install from scratch: follow the install guide doc. Edit `settings.nix` first.
 
@@ -22,7 +22,7 @@ flake.nix            inputs and outputs
 settings.nix         username, disk, emails — edit before install
 hosts/x1-yoga/       disk layout (disko), hardware config
 modules/system/      boot, network, power, desktop, docker
-modules/home/        niri, waybar, fuzzel, mako, hyprlock, ghostty, zsh, git, editors, scripts
+modules/home/        niri, noctalia (bar, launcher, lock), ghostty, zsh, git, editors, scripts
 theme/               palette.nix (colours) + Stylix and the light specialisation
 templates/           dev-shell flakes for new projects
 ```

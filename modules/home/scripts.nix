@@ -3,7 +3,11 @@
 let
   theme = pkgs.writeShellApplication {
     name = "theme";
-    runtimeInputs = with pkgs; [ coreutils ];
+    runtimeInputs = with pkgs; [
+      coreutils
+      procps
+      systemd
+    ];
     text = ''
       current=$(cat /etc/theme-variant 2>/dev/null || echo dark)
       target=''${1:-toggle}
@@ -15,8 +19,10 @@ let
         dark)  sudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch ;;
         *) echo "usage: theme [light|dark|toggle]"; exit 1 ;;
       esac
-      makoctl reload 2>/dev/null || true
-      echo "Theme: $target (open terminals keep the old colours until reopened)"
+      # Ghostty keeps running in the background: tell it to reload config and colours
+      systemctl --user kill --kill-whom=main -s USR2 app-com.mitchellh.ghostty.service 2>/dev/null || true
+      pkill -USR2 -f '\.ghostty-wrapped' 2>/dev/null || true
+      echo "Theme: $target"
     '';
   };
 
@@ -131,7 +137,7 @@ in
     proj() {
       local d
       d=$(fd --type d --max-depth 1 --hidden --exclude .worktrees . ~/code/work ~/code/personal 2>/dev/null \
-          | fzf --prompt='♦ Project  ' --height=40% --reverse) && cd "$d"
+          | fzf --prompt='❯ project  ' --height=40% --reverse) && cd "$d"
     }
   '';
 }

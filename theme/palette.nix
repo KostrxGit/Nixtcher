@@ -1,47 +1,62 @@
-# Casino palette — the only place colours are defined.
-# Base16 roles: 00-03 backgrounds, 04-07 foregrounds, 08-0F accents.
-# Hues the reference screenshots don't have (green, cyan, blue, magenta)
-# are pulled toward the palette: olive-gold, sand, brown-grey, muted rose.
+# Colours — the only place they are defined. Picked from the wallpaper
+# (Kaer Morhen painting): frost and ice from the snow, sky and mountain blues,
+# slate shadows, moss and lichen from the grass, orange flowers, ochre stone.
+#
+#   base00-03  backgrounds (darkest → lighter), 04-07 foregrounds
+#   base08-0F  terminal/syntax: red, orange, yellow, green, cyan, blue, magenta, brown
+#   accent / onAccent / glassEdge / shadow  UI colours for Niri, Noctalia, fallback wallpaper
 {
   dark = {
-    scheme = "Casino Dark";
+    scheme = "Kaer Morhen Dusk";
     author = "Konstanty";
-    base00 = "0A0908"; # background (near-black)
-    base01 = "16130F"; # surfaces, bar, panels
-    base02 = "2A241C"; # selection
-    base03 = "5E5446"; # muted text, comments
-    base04 = "8C7A5A"; # secondary text (tan-gold)
-    base05 = "C8B898"; # main text (warm sand)
-    base06 = "E0D3B5";
-    base07 = "F2E9D5";
-    base08 = "B8322A"; # card red — errors, critical
-    base09 = "C9803A"; # orange
-    base0A = "C9A04A"; # gold — accent, active border
-    base0B = "9A9455"; # "green" → olive-gold
-    base0C = "9C8F78"; # "cyan" → sand
-    base0D = "8A7F6E"; # "blue" → brown-grey
-    base0E = "A0605A"; # "magenta" → muted rose
-    base0F = "7A5A3A"; # brown
+    base00 = "161C26"; # background (night slate, from the shadows)
+    base01 = "1F2733"; # surfaces, panels
+    base02 = "2E3A4C"; # selection, outlines
+    base03 = "5F6E86"; # muted text (mountain shade)
+    base04 = "9AB0C9"; # secondary text (ice)
+    base05 = "DEE5EE"; # main text (frost)
+    base06 = "EAF0F6";
+    base07 = "F6F9FC"; # snow
+    base08 = "C8663A"; # red-orange (flowers)
+    base09 = "D9894A"; # orange
+    base0A = "C9C46A"; # yellow (lichen)
+    base0B = "8DAF5E"; # green (moss)
+    base0C = "6FA5A0"; # cyan (stream)
+    base0D = "7FA6D9"; # blue (sky)
+    base0E = "C48AA6"; # magenta (heather)
+    base0F = "A88A4E"; # brown (tower stone)
+
+    accent = "8DB3E2"; # sky blue — focus, active, buttons
+    onAccent = "161C26";
+    hover = "2B374A";
+    glassEdge = "DEE5EE";
+    shadow = "0A0F16";
   };
 
   light = {
-    scheme = "Casino Light";
+    scheme = "Kaer Morhen Snow";
     author = "Konstanty";
-    base00 = "E8E4DC"; # background (cream)
-    base01 = "EFE6CC"; # surfaces (parchment)
-    base02 = "DCD3BE"; # selection
-    base03 = "9A9080"; # muted text
-    base04 = "6B5E4E";
-    base05 = "3D3229"; # main text (dark brown)
-    base06 = "2A221B";
-    base07 = "18130F";
-    base08 = "C0392B"; # card red
-    base09 = "B86A1E";
-    base0A = "E0A84A"; # amber — accent, active border
-    base0B = "7A7438";
-    base0C = "7A6E5C";
-    base0D = "6B6052";
-    base0E = "8E4A44";
-    base0F = "6B4A2E";
+    base00 = "EEF3F8"; # background (frost)
+    base01 = "E1E9F2"; # surfaces
+    base02 = "C7D4E3"; # selection, outlines (ice)
+    base03 = "6E7E97"; # muted text
+    base04 = "526B92"; # secondary text (mountain blue)
+    base05 = "222932"; # main text (night slate)
+    base06 = "182029";
+    base07 = "10161D";
+    base08 = "B4502A";
+    base09 = "AF5F1E"; # orange flowers
+    base0A = "8C8A2E";
+    base0B = "577A33"; # moss
+    base0C = "3F726D";
+    base0D = "3D5C86"; # deep blue
+    base0E = "9A5A78";
+    base0F = "7E6334"; # stone
+
+    accent = "4B6FA5"; # mountain blue
+    onAccent = "FFFFFF";
+    hover = "D3DEEA";
+    glassEdge = "FFFFFF";
+    shadow = "1B2433";
   };
 }

@@ -1,0 +1,86 @@
+# Kaer Morhen: Witcher touches for this desktop.
+#   pup        wolf pup living in the bar (wanders, naps, pants, reacts to events)
+#   medallion  wolf medallion: opens the launcher, trembles when something needs you
+#   contracts  desktop notice board with your Claude task cards
+#   events     background service: sounds, notifications, lock/unlock, day/night wallpaper,
+#              schools, focus timer, battery health, Ranger mode, morning brief trigger
+#   brief / scroll / forge / ranger   morning brief, contract-complete scroll, Docker card, tile
+#   encounter / bestiary               encounter cards (merchant, monster, traveller, badge) and the record
+#
+# Shell side: `witcher <event> [text]` sends an event to the service
+# (agent, agent-done, build-ok, build-fail, test-ok, test-fail, idle, active, hum).
+
+id = "konstanty/kaer-morhen"
+name = "Kaer Morhen"
+version = "1.0.0"
+plugin_api = 34
+author = "konstanty"
+license = "MIT"
+icon = "paw"
+description = "Wolf pup companion, trembling medallion, contract board and day/night Kaer Morhen."
+tags = ["fun", "animation", "witcher"]
+
+[[widget]]
+id = "pup"
+entry = "pup.luau"
+hover_highlight = false
+
+[[widget]]
+id = "medallion"
+entry = "medallion.luau"
+hover_highlight = false
+
+[[desktop_widget]]
+id = "contracts"
+entry = "contracts.luau"
+
+[[service]]
+id = "events"
+entry = "events.luau"
+
+# Morning brief: weather, contracts, repos, battery health (first login of the day,
+# or Super+Shift+B)
+[[panel]]
+id = "brief"
+entry = "brief.luau"
+width = 564
+height = 640
+placement = "floating"
+position = "center"
+
+# "Contract complete" scroll at the end of a focus session
+[[panel]]
+id = "scroll"
+entry = "scroll.luau"
+width = 440
+height = 290
+placement = "floating"
+position = "center"
+
+# Desktop card: running Docker containers and their ports
+[[desktop_widget]]
+id = "forge"
+entry = "forge.luau"
+
+# Control-centre tile: Ranger mode (power saver, dimmer screen, calmer pup)
+[[shortcut]]
+id = "ranger"
+entry = "ranger.luau"
+
+# Encounter card: merchant challenge, monster contract, traveller or badge (about 5 a day)
+[[panel]]
+id = "encounter"
+entry = "encounter.luau"
+width = 380
+height = 220
+placement = "floating"
+position = "top_right"
+
+# The bestiary: purse, challenge, contracts, badges, discoveries (Super+Shift+A)
+[[panel]]
+id = "bestiary"
+entry = "bestiary.luau"
+width = 520
+height = 680
+placement = "floating"
+position = "center"
