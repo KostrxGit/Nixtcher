@@ -254,6 +254,8 @@ in
         Mod+M hotkey-overlay-title="Focus session (Vesna meditates)" { spawn "focus"; }
         Mod+Shift+B hotkey-overlay-title="Morning brief" { spawn "brief"; }
         Mod+Shift+A hotkey-overlay-title="Bestiary" { spawn "bestiary"; }
+        Mod+Alt+W hotkey-overlay-title="Next wallpaper" { spawn "wall" "next"; }
+        Mod+Alt+Shift+W hotkey-overlay-title="Previous wallpaper" { spawn "wall" "prev"; }
         Mod+G hotkey-overlay-title="Witcher's Codex (agent guide)" { spawn "ghostty" "--class=dev.codex" "--title=Codex" "-e" "guide"; }
         Mod+Slash hotkey-overlay-title="Cheatsheet" { spawn "ghostty" "--class=dev.cheatsheet" "--title=Cheatsheet" "-e" "cheatsheet"; }
         Mod+F1 hotkey-overlay-title=null { spawn "ghostty" "--class=dev.cheatsheet" "--title=Cheatsheet" "-e" "cheatsheet"; }

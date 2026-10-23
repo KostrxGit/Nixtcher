@@ -557,6 +557,9 @@ local function handle(kind: string, text: string)
   elseif kind == "brief" then
     openBrief()
     return
+  elseif kind == "wallpaper" then
+    hooks.wallpaper(text)
+    return
   elseif kind == "bestiary" then
     publishBestiary()
     noctalia.togglePanel("konstanty/kaer-morhen:bestiary")
@@ -598,6 +601,8 @@ noctalia.state.watch("km.cmd", function(c)
     stepSchool(1)
   elseif c.op == "school-prev" then
     stepSchool(-1)
+  elseif c.op == "wallpaper-next" then
+    hooks.wallpaper("next")
   elseif c.op == "encounter-accept" then
     answerEncounter("accept")
   elseif c.op == "encounter-dismiss" or c.op == "encounter-closed" then
@@ -626,22 +631,79 @@ if cfg.dbusMonitor then
   )
 end
 
--- ── Day / night wallpaper ────────────────────────────────────────────────────
+-- ── Wallpapers, tinted by day / night ───────────────────────────────────────
+-- cfg.wallpapers: id -> { title, dawn, day, dusk, night }; cfg.wallpaperOrder: ids in order.
+-- (An older config with a single { dawn, day, dusk, night } set still works.)
+local WALLS = cfg.wallpapers or {}
+if type(WALLS.day) == "string" then
+  WALLS = { default = WALLS }
+end
+local WALL_ORDER = cfg.wallpaperOrder or {}
+if #WALL_ORDER == 0 then
+  for id in WALLS do
+    table.insert(WALL_ORDER, id)
+  end
+  table.sort(WALL_ORDER)
+end
 local currentPeriod = ""
+local shownWall = ""
+
+local function wallId(): string
+  local id = saved.wallpaper
+  if id and WALLS[id] then
+    return id
+  end
+  return WALL_ORDER[1] or ""
+end
+
+local function showWallpaper()
+  local set = WALLS[wallId()]
+  if not set then
+    return
+  end
+  local p = if currentPeriod ~= "" then currentPeriod else "day"
+  local path = set[p] or set.day
+  if path and path ~= shownWall and noctalia.fileExists(path) then
+    shownWall = path
+    noctalia.setWallpaper(path)
+  end
+end
+
 local function applyPeriod()
   if not cfg.daynight or not cfg.latitude or not cfg.longitude then
+    showWallpaper()
     return
   end
   local p = sun.period(cfg.latitude, cfg.longitude)
   if p ~= currentPeriod then
     currentPeriod = p
-    local path = cfg.wallpapers[p]
-    if path and noctalia.fileExists(path) then
-      noctalia.setWallpaper(path)
-    end
     noctalia.state.set("km.period", p)
   end
+  showWallpaper()
 end
+
+local function setWallpaper(choice: string)
+  local id = choice
+  if choice == "" or choice == "next" or choice == "prev" then
+    local at = table.find(WALL_ORDER, wallId()) or 1
+    local n = #WALL_ORDER
+    if n == 0 then
+      return
+    end
+    at = if choice == "prev" then ((at - 2) % n) + 1 else (at % n) + 1
+    id = WALL_ORDER[at]
+  end
+  if not WALLS[id] then
+    noctalia.notifyError("Unknown wallpaper", `"{choice}". Try: {table.concat(WALL_ORDER, ", ")}.`)
+    return
+  end
+  saved.wallpaper = id
+  save()
+  showWallpaper()
+  noctalia.state.set("km.wallpaper", id)
+  noctalia.notify(WALLS[id].title or id, `Wallpaper {table.find(WALL_ORDER, id) or 1} of {#WALL_ORDER}.`)
+end
+hooks.wallpaper = setWallpaper
 
 -- ── Midnight howl ────────────────────────────────────────────────────────────
 local howledOn = ""

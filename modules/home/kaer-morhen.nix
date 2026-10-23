@@ -18,18 +18,74 @@ let
   home = config.home.homeDirectory;
   src = ../../theme/witcher-plugin;
 
-  # Time-of-day variants of the wallpaper
+  # Wallpapers you can switch between (`wall`, Super+Alt+W). The first one is the default
+  # (theme/wallpapers/witcher.jpg, or the generated gradient). Add a picture: drop it into
+  # theme/wallpapers/, add a line here, `git add`, `rebuild`.
+  #   tint = false   for pictures that are already dark: no extra dawn/dusk/night tint
+  wallpaperList = [
+    {
+      id = "witcher";
+      title = "Default";
+      image = config.stylix.image;
+    }
+    {
+      id = "keep";
+      title = "Kaer Morhen";
+      image = ../../theme/wallpapers/keep.jpg;
+    }
+    {
+      id = "storm";
+      title = "Keep in the storm";
+      image = ../../theme/wallpapers/storm.jpg;
+      tint = false;
+    }
+    {
+      id = "novigrad";
+      title = "Novigrad at sunset";
+      image = ../../theme/wallpapers/novigrad.jpg;
+    }
+  ];
+  # the default is always there; the others only once their file is in the repo
+  availableWallpapers = builtins.filter (
+    w: w.id == "witcher" || builtins.pathExists w.image
+  ) wallpaperList;
+
+  # Time-of-day variants of each wallpaper, chosen by real sunrise/sunset. Every variant is
+  # cropped to the panel's exact size (3840x2400) at build time, so switching doesn't
+  # make the shell decode and rescale a big picture.
   tint =
-    name: args:
-    pkgs.runCommand "kaer-morhen-${name}.jpg" { nativeBuildInputs = [ pkgs.imagemagick ]; } ''
-      magick ${config.stylix.image} ${args} -quality 92 jpg:$out
+    id: name: image: args:
+    pkgs.runCommand "kaer-morhen-${id}-${name}.jpg" { nativeBuildInputs = [ pkgs.imagemagick ]; } ''
+      magick ${image} -resize 3840x2400^ -gravity center -extent 3840x2400 ${args} -quality 92 jpg:$out
     '';
-  wallpapers = {
-    dawn = "${tint "dawn" "-modulate 100,90 -fill '#E9B8C8' -colorize 13%"}";
-    day = "${config.stylix.image}";
-    dusk = "${tint "dusk" "-modulate 94,110 -fill '#E8925A' -colorize 20%"}";
-    night = "${tint "night" "-modulate 60,70 -fill '#121C33' -colorize 32%"}";
-  };
+  variants =
+    w:
+    let
+      day = "${tint w.id "day" w.image ""}";
+    in
+    if w.tint or true then
+      {
+        inherit day;
+        dawn = "${tint w.id "dawn" w.image "-modulate 100,90 -fill '#E9B8C8' -colorize 13%"}";
+        dusk = "${tint w.id "dusk" w.image "-modulate 94,110 -fill '#E8925A' -colorize 20%"}";
+        night = "${tint w.id "night" w.image "-modulate 60,70 -fill '#121C33' -colorize 32%"}";
+      }
+    else
+      {
+        inherit day;
+        dawn = day;
+        dusk = day;
+        night = day;
+      };
+  wallpapers = builtins.listToAttrs (
+    map (w: {
+      name = w.id;
+      value = variants w // {
+        inherit (w) title;
+      };
+    }) availableWallpapers
+  );
+  wallpaperOrder = map (w: w.id) availableWallpapers;
 
   pluginConfig = pkgs.writeText "kaer-morhen-config.json" (
     builtins.toJSON {
@@ -59,7 +115,7 @@ let
       # from settings.nix if set there, otherwise Sønderborg
       latitude = settings.latitude or 54.91;
       longitude = settings.longitude or 9.79;
-      inherit wallpapers;
+      inherit wallpapers wallpaperOrder;
       titleFont = config.stylix.fonts.serif.name;
       # Encounters: merchant challenges, monster contracts, travellers, badges.
       # `encounters off` pauses them; change the numbers here and rebuild.
@@ -134,6 +190,21 @@ let
     text = ''exec noctalia msg panel-toggle konstanty/kaer-morhen:brief'';
   };
 
+  # wall [next|prev|list|<name>]   switch wallpaper (keeps the day/night tint)
+  wall = pkgs.writeShellApplication {
+    name = "wall";
+    runtimeInputs = [ witcher ];
+    text = ''
+      case "''${1:-next}" in
+        list)
+          ${lib.concatMapStringsSep "\n" (w: "echo '  ${w.id}  ${w.title}'") availableWallpapers}
+          ;;
+        next | prev ${lib.concatMapStrings (id: " | ${id}") wallpaperOrder}) exec witcher wallpaper "''${1:-next}" ;;
+        *) echo "usage: wall [next|prev|list|${lib.concatStringsSep "|" wallpaperOrder}]"; exit 1 ;;
+      esac
+    '';
+  };
+
   # bestiary: purse, challenge, contracts, badges and discoveries
   bestiary = pkgs.writeShellApplication {
     name = "bestiary";
@@ -184,6 +255,7 @@ in
     ranger
     bestiary
     encounters
+    wall
   ];
 
   # Notification chime (other sounds fall back to the freedesktop theme)

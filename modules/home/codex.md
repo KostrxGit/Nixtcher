@@ -149,6 +149,7 @@ Every agent works with two blades you don't have to think about:
 | **Sigurd** | A pony who trots along the bottom of the screen every 40 minutes or so (9:00 to 22:00). Click him for a joke, a tip or a shortcut. When `rebuild`, `b` or `t` runs longer than a minute he brings the result. `sigurd visit` calls him over |
 | **Encounters** | About five a day a card appears in the top-right corner: a **merchant** with a daily challenge the system checks for you, a **monster contract** (a small real task; mark it *Slain* when done), a **traveller** with a saying or a tip, or a rare **badge** for something you did. Never during focus, when idle or locked. *Not now* or closing the card dismisses it. `encounters off` / `on` pauses them, `encounters now` summons one |
 | **Bestiary** | **Super + Shift + A** or `bestiary`: your crowns, today's challenge, open contracts, badges and every creature you've met. Frequency and hours live in `modules/home/kaer-morhen.nix` → `encounters` |
+| **Wallpapers** | **Super + Alt + W** next, **+ Shift** back, or `wall keep` / `wall list`. The choice is remembered and still gets the dawn / dusk / night tint. Add one: put it in `theme/wallpapers/`, add a line to `wallpaperList` in `modules/home/kaer-morhen.nix` |
 | **Your phone** | KDE Connect: install it on Android, open the KDE Connect icon in the bar's tray and pair. Phone notifications then show up here |
 
 ---
