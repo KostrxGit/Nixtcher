@@ -25,7 +25,7 @@ import sigurd_core as core
 SOCKET = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "sigurd.sock")
 CONFIG = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "sigurd", "config.json")
 TICK_MS = 50
-STRIP_H = 220  # overlay height (logical px); only the horse and bubble take input
+STRIP_H = 260  # overlay height (logical px); only the horse and bubble take input
 GROUND = 4  # gap between his hooves and the screen edge
 
 
@@ -64,7 +64,7 @@ def run() -> int:
     gi.require_version("Gtk4LayerShell", "1.0")
     gi.require_foreign("cairo")
     import cairo
-    from gi.repository import Gdk, Gio, GLib, Gtk
+    from gi.repository import Gdk, Gio, GLib, Gtk, Pango
     from gi.repository import Gtk4LayerShell as LayerShell
 
     cfg = load_config()
@@ -185,7 +185,10 @@ def run() -> int:
 
             self.bubble = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
             self.bubble.add_css_class("bubble")
-            self.label = Gtk.Label(wrap=True, max_width_chars=38, xalign=0)
+            # Wide and short: up to ~64 characters a line, at most 6 lines (longer text ends in …)
+            self.label = Gtk.Label(wrap=True, max_width_chars=64, width_chars=24, xalign=0)
+            self.label.set_lines(6)
+            self.label.set_ellipsize(Pango.EllipsizeMode.END)
             self.button = Gtk.Button()
             self.button.connect("clicked", self.on_action)
             self.bubble.append(self.label)

@@ -87,6 +87,72 @@ let
   );
   wallpaperOrder = map (w: w.id) availableWallpapers;
 
+  # Reads every task card in the code folders and prints one tab-separated line per card, so
+  # the shell plugin never has to open hundreds of files itself (each plugin call gets only
+  # 25 ms of CPU). Columns: repo, repo path, card file, card ID, issue (from the name), card
+  # number, worktree open (0/1), modified (epoch s), status, issue (front matter), base,
+  # title, ticked boxes, all boxes, "changes requested" section (0/1), issue title.
+  cardsScript = pkgs.writeShellApplication {
+    name = "kaer-morhen-cards";
+    runtimeInputs = with pkgs; [
+      coreutils
+      gawk
+    ];
+    text = ''
+      shopt -s nullglob
+      files=() wts=()
+      for root in "$@"; do
+        [ -d "$root" ] || continue
+        files+=("$root"/*/docs/tasks/*.md)
+        wts+=("$root"/*/.claude/worktrees/*/)
+      done
+      [ ''${#files[@]} -gt 0 ] || exit 0
+      WTS=$(printf '%s\n' "''${wts[@]%/}") MTS=$(stat -c '%Y %n' "''${files[@]}") awk '
+        function start(f) {
+          name = f; sub(/.*\//, "", name)
+          repoPath = f; sub(/\/docs\/tasks\/[^\/]*$/, "", repoPath)
+          repo = repoPath; sub(/.*\//, "", repo)
+          ok = 1
+          if (name ~ /^[A-Z][A-Z0-9]*-[0-9]+-[0-9][0-9]?[0-9]?-.*\.md$/) {
+            match(name, /^[A-Z][A-Z0-9]*-[0-9]+-/); issue = substr(name, 1, RLENGTH - 1)
+            rest = substr(name, RLENGTH + 1); match(rest, /^[0-9]+/); no = substr(rest, 1, RLENGTH)
+            id = issue "-" no; wt = repoPath "/.claude/worktrees/" id
+          } else if (name ~ /^[0-9]+-.*\.md$/) {
+            match(name, /^[0-9]+/); no = substr(name, 1, RLENGTH); issue = ""
+            id = no; wt = repoPath "/.claude/worktrees/task-" id
+          } else ok = 0
+          cur = f; fm = 0; status = ""; iss = ""; ititle = ""; base = ""; title = ""; ticked = 0; total = 0; changes = 0
+        }
+        function flush() {
+          if (cur != "" && ok)
+            printf "%s\t%s\t%s\t%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%s\n", repo, repoPath, cur, id, issue, no,
+              (wt in WT), MT[cur], status, iss, base, title, ticked, total, changes, ititle
+          cur = ""
+        }
+        BEGIN {
+          n = split(ENVIRON["WTS"], w, "\n"); for (i = 1; i <= n; i++) if (w[i] != "") WT[w[i]] = 1
+          n = split(ENVIRON["MTS"], l, "\n"); for (i = 1; i <= n; i++) { p = index(l[i], " "); if (p) MT[substr(l[i], p + 1)] = substr(l[i], 1, p - 1) }
+        }
+        FNR == 1 { flush(); start(FILENAME) }
+        !ok { next }
+        FNR == 1 && $0 == "---" { fm = 1; next }
+        fm && $0 == "---" { fm = 0; next }
+        fm && match($0, /^[A-Za-z_-]+:/) {
+          k = substr($0, 1, RLENGTH - 1); v = substr($0, RLENGTH + 1)
+          gsub(/^[ \t]+|[ \t\r]+$/, "", v)
+          gsub(/\t/, " ", v)
+          if (k == "status") status = v; else if (k == "issue") iss = v; else if (k == "base") base = v
+          else if (k == "issue-title") ititle = v
+          next
+        }
+        !fm && title == "" && /^#[ \t]+/ { title = $0; sub(/^#[ \t]+/, "", title); gsub(/[\t\r]/, " ", title) }
+        /^[ \t]*[-*][ \t]+\[[ xX]\]/ { total++; if ($0 ~ /\[[xX]\]/) ticked++ }
+        /^## Changes requested/ { changes = 1 }
+        END { flush() }
+      ' "''${files[@]}"
+    '';
+  };
+
   pluginConfig = pkgs.writeText "kaer-morhen-config.json" (
     builtins.toJSON {
       noctalia = lib.getExe noctalia;
@@ -127,6 +193,8 @@ let
         sigurd = true; # Sigurd trots in to announce them
       };
       sigurd = "${config.home.profileDirectory}/bin/sigurd";
+      bin = "${config.home.profileDirectory}/bin"; # ghostty, guide, cheatsheet for the launcher
+      cards = lib.getExe cardsScript; # reads the task cards for the ledger and the board
     }
   );
 
@@ -190,6 +258,72 @@ let
     text = ''exec noctalia msg panel-toggle konstanty/kaer-morhen:brief'';
   };
 
+  # Lore subtitles in the launcher: each app's own .desktop file with a Witcher GenericName
+  # (the grey line under the name). Same file name, so it takes the original's place.
+  loreApps = [
+    {
+      pkg = config.programs.ghostty.package;
+      match = "com.mitchellh.ghostty";
+      lore = "Grimoire · terminal";
+    }
+    {
+      pkg = pkgs.google-chrome;
+      match = "google-chrome";
+      lore = "Raven post · web browser";
+    }
+    {
+      pkg = config.programs.vscode.package;
+      match = "code";
+      lore = "Alchemy table · code editor";
+    }
+    {
+      pkg = pkgs.nautilus;
+      match = "org.gnome.Nautilus";
+      lore = "Saddlebags · files";
+    }
+    {
+      pkg = config.services.kdeconnect.package;
+      match = "org.kde.kdeconnect.app";
+      lore = "Messenger ravens · your phone";
+    }
+    {
+      pkg = pkgs.loupe;
+      match = "org.gnome.Loupe";
+      lore = "Painter's gallery · images";
+    }
+    {
+      pkg = pkgs.papers;
+      match = "org.gnome.Papers";
+      lore = "Scrolls and tomes · PDF";
+    }
+    {
+      pkg = pkgs.gnome-calculator;
+      match = "org.gnome.Calculator";
+      lore = "Merchant's abacus · calculator";
+    }
+    {
+      pkg = pkgs.pavucontrol;
+      match = "*pavucontrol";
+      lore = "Bard's lute · volume mixer";
+    }
+  ];
+  appLore = pkgs.runCommand "kaer-morhen-app-lore" { } (
+    ''
+      mkdir -p $out
+    ''
+    + lib.concatMapStrings (a: ''
+      for f in ${a.pkg}/share/applications/${a.match}.desktop; do
+        [ -e "$f" ] || { echo "kaer-morhen: no ${a.match}.desktop in ${a.pkg}, skipped" >&2; continue; }
+        # drop the old GenericName lines, add ours right after the [Desktop Entry] header
+        awk -v lore=${lib.escapeShellArg a.lore} '
+          /^GenericName/ { next }
+          { print }
+          !done && $0 == "[Desktop Entry]" { print "GenericName=" lore; done = 1 }
+        ' "$f" > "$out/$(basename "$f")"
+      done
+    '') loreApps
+  );
+
   # wall [next|prev|list|<name>]   switch wallpaper (keeps the day/night tint)
   wall = pkgs.writeShellApplication {
     name = "wall";
@@ -246,6 +380,11 @@ let
   };
 in
 {
+  xdg.dataFile."applications" = {
+    source = appLore;
+    recursive = true;
+  };
+
   home.packages = [
     witcher
     claudeHook
@@ -285,6 +424,44 @@ in
     };
 
     audio.sound_theme = "kaer-morhen";
+
+    # Vesna's portrait in the launcher and on the lock screen
+    shell.avatar_path = "${src}/assets/avatar.png";
+
+    # The power menu (Super+Shift+E, or the button in the launcher), keys 1-5
+    shell.session.actions = [
+      {
+        action = "lock";
+        label = "Rest by the fire";
+        glyph = "flame";
+        shortcut = "1";
+      }
+      {
+        action = "logout";
+        label = "Leave the keep";
+        glyph = "door-exit";
+        shortcut = "2";
+      }
+      {
+        action = "lock_and_suspend";
+        label = "Meditate";
+        glyph = "moon";
+        shortcut = "3";
+      }
+      {
+        action = "reboot";
+        label = "Return to Kaer Morhen";
+        glyph = "refresh";
+        shortcut = "4";
+      }
+      {
+        action = "shutdown";
+        label = "Blow out the candles";
+        glyph = "candle";
+        variant = "destructive";
+        shortcut = "5";
+      }
+    ];
 
     widget = {
       pup.type = "konstanty/kaer-morhen:pup";

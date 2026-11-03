@@ -6,6 +6,8 @@
 #              schools, focus timer, battery health, Ranger mode, morning brief trigger
 #   brief / scroll / forge / ranger   morning brief, contract-complete scroll, Docker card, tile
 #   encounter / bestiary               encounter cards (merchant, monster, traveller, badge) and the record
+#   ledger-book                        the ledger: every project, its progress and open cards
+#   satchel                            launcher commands: /witcher, or just type "focus", "griffin", ...
 #
 # Shell side: `witcher <event> [text]` sends an event to the service
 # (agent, agent-done, build-ok, build-fail, test-ok, test-fail, idle, active, hum).
@@ -82,5 +84,38 @@ id = "bestiary"
 entry = "bestiary.luau"
 width = 520
 height = 680
+placement = "floating"
+position = "center"
+
+# The witcher's satchel: Kaer Morhen commands in the launcher (/witcher, or type a word)
+[[launcher_provider]]
+id = "satchel"
+entry = "satchel.luau"
+prefix = "witcher"
+glyph = "sword"
+include_in_global_search = true
+
+  [[launcher_provider.category]]
+  label = "Keep"
+  glyph = "home"
+
+  [[launcher_provider.category]]
+  label = "Schools"
+  glyph = "shield"
+
+  [[launcher_provider.category]]
+  label = "Wallpapers"
+  glyph = "photo"
+
+  [[launcher_provider.category]]
+  label = "Lore"
+  glyph = "book-2"
+
+# The ledger (Super+Shift+L): every project and issue, its progress and its open cards
+[[panel]]
+id = "ledger-book"
+entry = "ledger-book.luau"
+width = 760
+height = 720
 placement = "floating"
 position = "center"

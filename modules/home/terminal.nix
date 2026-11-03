@@ -146,9 +146,19 @@ in
   };
 
   programs.bat.config.theme = "ansi";
+  # btop: Super+Shift+Escape opens it in its own dark window (or run `btop`).
+  # CPU, memory, GPU and the process list; sorted by CPU, heaviest first.
   programs.btop.settings = {
     color_theme = "TTY";
     theme_background = false;
+    shown_boxes = "cpu mem net proc gpu0";
+    proc_sorting = "cpu lazy";
+    proc_tree = false;
+    proc_gradient = false;
+    update_ms = 1500;
+    mem_graphs = true;
+    show_battery = true;
+    vim_keys = false;
   };
   # delta detects whether the terminal is light or dark by itself
   programs.delta.options.syntax-theme = "ansi";

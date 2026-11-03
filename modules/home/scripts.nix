@@ -1,5 +1,5 @@
 # Small commands: theme, newproj, task (agent workflow), plus the `proj` jump.
-{ pkgs, ... }:
+{ lib, pkgs, ... }:
 let
   theme = pkgs.writeShellApplication {
     name = "theme";
@@ -53,7 +53,12 @@ let
     '';
   };
 
-  # Agent workflow. Cards live in docs/tasks/NNN-*.md (written by the manager).
+  # Agent workflow. Cards live in docs/tasks/<ID>-*.md, written by the manager:
+  #   TIN-1234-01-login-form.md   Linear issue TIN-1234, card 01 → branch TIN-1234-task-01
+  #   003-login.md                older cards without an issue  → branch task-003
+  # Every window working on a card is titled "<ID> · coder|review|terminal" and gets the
+  # card's colour (theme/cards.nix): a thick border from niri and a dark tint in Ghostty.
+  cards = import ../../theme/cards.nix;
   task = pkgs.writeShellApplication {
     name = "task";
     runtimeInputs = with pkgs; [
@@ -61,64 +66,162 @@ let
       git
       findutils
       gnugrep
+      gnused
+      gawk
       lazygit
     ];
     text = ''
       usage() {
         cat <<EOF
-      task list            cards and agent worktrees in this repo
-      task start NNN       open a coding agent for card NNN in its own worktree + window
-      task review NNN      open the reviewer on card NNN's worktree
-      task diff NNN        lazygit in card NNN's worktree (review, stage, commit yourself)
-      task clean NNN       remove card NNN's worktree after you merged it
+      task list               cards and agent worktrees in this repo
+      task start ID           coding agent for card ID, in its own worktree + window
+      task review ID          reviewer for card ID's worktree
+      task term ID            terminal in card ID's worktree
+      task code ID            VS Code on card ID's worktree
+      task diff ID            lazygit in card ID's worktree
+      task commands ID        the commit, merge (--no-ff) and clean-up commands for card ID
+      task clean ID           remove card ID's worktree after you merged it (card → done)
+
+      ID is the card's id: TIN-1234-01, or 003 for older cards ("task-001" works too).
       EOF
       }
 
       root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo"; exit 1; }
       cd "$root"
 
+      TINTS=(${lib.escapeShellArgs (map (c: c.tint) cards)})
+
+      isLinear() { [[ $1 =~ ^[A-Z][A-Z0-9]*-[0-9]+-[0-9]+$ ]]; }
+      issueOf() { if isLinear "$1"; then echo "''${1%-*}"; fi; }
+      numberOf() { echo "''${1##*-}"; }
+      branchOf() { if isLinear "$1"; then echo "$(issueOf "$1")-task-$(numberOf "$1")"; else echo "task-$1"; fi; }
+      wt() { if isLinear "$1"; then echo "$root/.claude/worktrees/$1"; else echo "$root/.claude/worktrees/task-$1"; fi; }
       card() {
         local f
-        f=$(find docs/tasks -maxdepth 1 -name "$1-*.md" 2>/dev/null | head -n1)
-        [ -n "$f" ] || { echo "No card docs/tasks/$1-*.md"; exit 1; }
-        echo "$f"
+        f=$(find docs/tasks -maxdepth 1 -name "$1-*.md" 2>/dev/null | sort | head -n1)
+        [ -n "$f" ] || { echo "No card docs/tasks/$1-*.md" >&2; exit 1; }
+        echo "$root/$f"
       }
-      wt() { echo "$root/.claude/worktrees/task-$1"; }
+      # front matter: read a field / set a field (added before the closing --- if missing)
+      field() { awk -v k="$2" 'NR==1 && $0!="---" {exit} NR>1 && $0=="---" {exit} index($0, k":")==1 {sub("^[^:]*:[ \t]*", ""); print; exit}' "$1"; }
+      setField() {
+        local tmp
+        head -n1 "$1" | grep -qx -- '---' || return 0
+        tmp=$(mktemp)
+        awk -v k="$2" -v v="$3" '
+          NR==1 {print; fm=1; next}
+          fm && $0=="---" { if (!done) print k": "v; fm=0; print; next }
+          fm && index($0, k":")==1 { print k": "v; done=1; next }
+          {print}' "$1" >"$tmp" && cat "$tmp" >"$1"
+        rm -f "$tmp"
+      }
+      title() { sed -n 's/^#[[:space:]]\+//p' "$1" | head -n1 | sed -E 's/^[A-Z0-9-]+[[:space:]]*(—|–|:|-)[[:space:]]*//'; }
+      # Ghostty window look for a card: title + the card's colour as a dark tint
+      look() {
+        local n idx
+        n=$(numberOf "$1"); n=$((10#''${n:-1})); idx=$(( (n > 0 ? n - 1 : 0) % ''${#TINTS[@]} ))
+        printf '%s\n' "--title=$1 · $2" "--theme=night" "--background=''${TINTS[$idx]}" "--background-opacity=0.85"
+      }
+      needWorktree() { [ -d "$1" ] || { echo "No worktree $1 (run: task start $2)"; exit 1; }; }
 
-      case "''${1:-}" in
+      cmd=''${1:-}
+      n=''${2:-}; n=''${n#task-}
+      case "$cmd" in
         list)
           echo "Cards:"
           for f in docs/tasks/*.md; do
             [ -e "$f" ] || continue
-            s=$(grep -m1 '^status:' "$f" | cut -d' ' -f2- || true)
-            printf '  %-40s %s\n' "$(basename "$f")" "''${s:-?}"
+            printf '  %-46s %-18s %s\n' "$(basename "$f")" "$(field "$f" status)" "$(field "$f" base)"
           done
           echo; echo "Worktrees:"; git worktree list
           ;;
         start)
-          n=''${2:?card number}; f="$root/$(card "$n")"
-          # Cards are usually uncommitted, so the agent reads them from the main checkout
-          ghostty --working-directory="$root" -e claude -w "task-$n" --agent coder -n "task-$n" \
+          [ -n "$n" ] || { usage; exit 1; }
+          f=$(card "$n"); d=$(wt "$n"); b=$(branchOf "$n")
+          # The worktree branches off what you have checked out now. Running start again
+          # reuses it, e.g. after a review asked for changes.
+          if [ ! -d "$d" ]; then
+            base=$(git branch --show-current); base=''${base:-HEAD}
+            exclude=$(git rev-parse --git-path info/exclude)
+            git check-ignore -q "$d" || grep -qxF '.claude/worktrees/' "$exclude" 2>/dev/null ||
+              echo '.claude/worktrees/' >>"$exclude"
+            if git show-ref --verify --quiet "refs/heads/$b"; then
+              git worktree add "$d" "$b"
+              echo "Worktree $d on the existing branch $b."
+            else
+              git worktree add -b "$b" "$d" "$base"
+              setField "$f" base "$base"
+              echo "Worktree $d on new branch $b (from $base)."
+            fi
+          fi
+          mapfile -t lookArgs < <(look "$n" coder)
+          # Cards are usually uncommitted, so the agent reads them from the main checkout.
+          # `--` ends the options: --add-dir takes several values and would eat the prompt.
+          ghostty --working-directory="$d" "''${lookArgs[@]}" -e claude --agent coder -n "$n · coder" \
             --add-dir "$root/docs/tasks" \
-            "Implement the task card $f. Read it first and follow it exactly." &
+            -- "Implement the task card $f (card $n). Read it first and follow it exactly." &
           disown
-          echo "Coding agent for $f opened in a new window."
+          echo "Coding agent for $n opened in a new window."
           ;;
         review)
-          n=''${2:?card number}; f="$root/$(card "$n")"; d=$(wt "$n")
-          [ -d "$d" ] || { echo "No worktree $d"; exit 1; }
-          ghostty --working-directory="$d" -e claude --agent reviewer -n "review-$n" \
+          [ -n "$n" ] || { usage; exit 1; }
+          f=$(card "$n"); d=$(wt "$n"); needWorktree "$d" "$n"
+          base=$(field "$f" base)
+          mapfile -t lookArgs < <(look "$n" review)
+          ghostty --working-directory="$d" "''${lookArgs[@]}" -e claude --agent reviewer -n "$n · review" \
             --add-dir "$root/docs/tasks" \
-            "Review the changes in this worktree against the card $f." &
+            -- "Review card $n: the changes in this worktree ($d, branch $(branchOf "$n"), started from ''${base:-the branch it was started from}) against the card $f. If you approve, finish with the output of: task commands $n" &
+          disown
+          echo "Reviewer for $n opened in a new window."
+          ;;
+        term)
+          [ -n "$n" ] || { usage; exit 1; }
+          d=$(wt "$n"); needWorktree "$d" "$n"
+          mapfile -t lookArgs < <(look "$n" terminal)
+          ghostty --working-directory="$d" "''${lookArgs[@]}" &
+          disown
+          ;;
+        code)
+          [ -n "$n" ] || { usage; exit 1; }
+          d=$(wt "$n"); needWorktree "$d" "$n"
+          code -n "$d" >/dev/null 2>&1 &
           disown
           ;;
         diff)
-          n=''${2:?card number}; d=$(wt "$n")
+          [ -n "$n" ] || { usage; exit 1; }
+          d=$(wt "$n"); needWorktree "$d" "$n"
           lazygit -p "$d"
           ;;
+        commands)
+          [ -n "$n" ] || { usage; exit 1; }
+          f=$(card "$n"); d=$(wt "$n"); b=$(branchOf "$n")
+          base=$(field "$f" base); base=''${base:-$(git branch --show-current)}
+          type=$(field "$f" type); type=''${type:-feat}
+          issue=$(field "$f" issue); issue=''${issue:-$(issueOf "$n")}
+          t=$(title "$f")
+          msg="''${issue:+($issue)}$type: $t"
+          cat <<EOF
+      # 1. Commit the work, in the card's worktree
+      cd $d
+      git add -A
+      git commit -m "$msg"
+
+      # 2. Merge it into $base (--no-ff keeps one merge commit per card)
+      cd $root
+      git switch $base
+      git merge --no-ff $b -m "Merge $b: $t"
+      git push
+
+      # 3. Clean up
+      task clean $n
+      git branch -d $b
+      EOF
+          ;;
         clean)
-          n=''${2:?card number}; d=$(wt "$n")
-          git worktree remove "$d" && echo "Removed $d (branch kept; delete it with git branch -d when merged)"
+          [ -n "$n" ] || { usage; exit 1; }
+          d=$(wt "$n")
+          git worktree remove "$d" && echo "Removed $d (branch $(branchOf "$n") kept; git branch -d it once merged)"
+          if f=$(card "$n" 2>/dev/null); then setField "$f" status "done"; fi
           ;;
         *) usage ;;
       esac

@@ -300,9 +300,35 @@ local function dailyCounts()
 end
 local commitsToday, contractsReviewDone = 0, 0
 
+-- Task cards: read by the kaer-morhen-cards script (outside the 25 ms budget), published as
+-- km.cards for the ledger, the contract board and the brief.
+local cardsSeq, cardsBusy, lastCardsAt = 0, false, -1e12
+local function refreshCards()
+  if cardsBusy or not cfg.cards then
+    return
+  end
+  cardsBusy = true
+  lastCardsAt = noctalia.nowMs()
+  local argv = { cfg.cards }
+  for _, d in cfg.codeDirs or {} do
+    table.insert(argv, d)
+  end
+  local started = noctalia.runAsync(argv, function(res)
+    cardsBusy = false
+    if res.exitCode == 0 then
+      cardsSeq += 1
+      noctalia.state.set("km.cards", { cards = contractsLib.fromRows(res.stdout), seq = cardsSeq })
+    end
+  end)
+  if not started then
+    cardsBusy = false
+  end
+end
+hooks.refreshCards = refreshCards
+
 local function countReviewDone(): number
   local n = 0
-  for _, c in contractsLib.scan(cfg.codeDirs or {}) do
+  for _, c in contractsLib.current() do
     if c.key == "review" or c.key == "done" then
       n += 1
     end
@@ -582,6 +608,7 @@ local function handle(kind: string, text: string)
   end
   publish(kind, text)
 end
+hooks.ipc = handle
 
 function onIpc(event, payload)
   handle(tostring(event or ""), tostring(payload or ""))
@@ -601,6 +628,10 @@ noctalia.state.watch("km.cmd", function(c)
     stepSchool(1)
   elseif c.op == "school-prev" then
     stepSchool(-1)
+  elseif c.op == "cards-refresh" then
+    hooks.refreshCards()
+  elseif c.op == "ipc" then
+    hooks.ipc(c.kind or "", c.arg or "")
   elseif c.op == "wallpaper-next" then
     hooks.wallpaper("next")
   elseif c.op == "encounter-accept" then
@@ -737,6 +768,9 @@ function update()
     checkMidnight()
     checkHealth()
   end
+  if now - lastCardsAt >= 19000 then
+    refreshCards()
+  end
   encounterTick(now)
   local _, _, ch = E.challengeProgress(saved, today(), metrics())
   if ch and not saved.challenge.done and (ch.metric == "commitsToday" or ch.metric == "contractsToday")
@@ -754,3 +788,4 @@ applyPeriod()
 checkHealth()
 maybeBrief()
 publishBestiary()
+refreshCards()

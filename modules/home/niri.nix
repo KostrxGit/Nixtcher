@@ -3,6 +3,7 @@
 # Check it after edits with: niri validate
 {
   config,
+  lib,
   pkgs,
   settings,
   ...
@@ -18,6 +19,27 @@ let
   # Soft, centred shadows that lift the glass off the wallpaper
   shadow = "#${pal.shadow}${if dark then "70" else "26"}";
   shadowWs = "#${pal.shadow}${if dark then "88" else "33"}";
+
+  # Task cards: every window whose title holds a card ID (TIN-1234-01: agent, reviewer,
+  # terminal, VS Code on its worktree) gets the card's colour as a thick border.
+  # Card 01 → colour 1, 02 → colour 2 … 09 → colour 1 again (theme/cards.nix).
+  cards = import ../../theme/cards.nix;
+  cardNumbers =
+    i:
+    map (lib.fixedWidthNumber 2) (
+      builtins.filter (n: lib.mod (n - 1) (builtins.length cards) == i) (lib.range 1 99)
+    );
+  cardRules = lib.concatImapStrings (i: col: ''
+    window-rule {
+        match title="(^|[^A-Za-z0-9])[A-Z][A-Z0-9]*-[0-9]+-(${lib.concatStringsSep "|" (cardNumbers (i - 1))})([^0-9]|$)"
+        border {
+            on
+            width 3
+            active-color "${col.border}"
+            inactive-color "${col.border}a0"
+        }
+    }
+  '') cards;
 in
 {
   home.packages = with pkgs; [
@@ -161,6 +183,7 @@ in
         }
     }
 
+    ${cardRules}
     // Rounded glass panes; windows you're not using step back slightly
     window-rule {
         geometry-corner-radius 18
@@ -190,6 +213,7 @@ in
     window-rule {
         match app-id="^dev\\.cheatsheet$"
         match app-id="^dev\\.codex$"
+        match app-id="^dev\\.btop$"
         open-floating true
         default-column-width { fixed 1040; }
         default-window-height { fixed 840; }
@@ -254,6 +278,7 @@ in
         Mod+M hotkey-overlay-title="Focus session (Vesna meditates)" { spawn "focus"; }
         Mod+Shift+B hotkey-overlay-title="Morning brief" { spawn "brief"; }
         Mod+Shift+A hotkey-overlay-title="Bestiary" { spawn "bestiary"; }
+        Mod+Shift+L hotkey-overlay-title="Ledger: tasks and progress" { spawn-sh "noctalia msg panel-toggle konstanty/kaer-morhen:ledger-book"; }
         Mod+Alt+W hotkey-overlay-title="Next wallpaper" { spawn "wall" "next"; }
         Mod+Alt+Shift+W hotkey-overlay-title="Previous wallpaper" { spawn "wall" "prev"; }
         Mod+G hotkey-overlay-title="Witcher's Codex (agent guide)" { spawn "ghostty" "--class=dev.codex" "--title=Codex" "-e" "guide"; }
@@ -273,6 +298,7 @@ in
         Mod+Shift+G hotkey-overlay-title="Terminal frost / dark" { spawn "term" "toggle"; }
         Mod+Shift+W hotkey-overlay-title="Move desktop widgets" { spawn-sh "noctalia msg desktop-widgets-toggle-edit"; }
         Mod+Escape hotkey-overlay-title="Lock" { spawn-sh "noctalia msg session lock"; }
+        Mod+Shift+Escape hotkey-overlay-title="Task manager (btop)" { spawn "ghostty" "--class=dev.btop" "--title=btop" "--theme=night" "-e" "btop"; }
         Super+Alt+L hotkey-overlay-title=null { spawn-sh "noctalia msg session lock"; }
 
         // Media keys (Noctalia shows the on-screen popup)

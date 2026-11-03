@@ -1,21 +1,19 @@
 --!nonstrict
--- Contract board: the Claude task cards (docs/tasks/NNN-*.md) from every repo in your code
--- folders, like notices pinned in a village. An open worktree (.claude/worktrees/task-NNN)
--- means a coding agent has taken the contract. Click a contract to open a terminal in its repo.
+-- Contract board: the Claude task cards (docs/tasks/<ID>-*.md) from every repo in your code
+-- folders, like notices pinned in a village. An open worktree means a coding agent has taken
+-- the contract. Click a contract to open a terminal in its repo.
 
 local cfg = require("./lib/config.luau")
 
 local WIDTH = 320
 local MAX_ROWS = 6
-local REFRESH_MS = 30000
-
 local lib = require("./lib/contracts.luau")
 local STATUS = lib.STATUS
 
 local contracts = {}
 
 local function scan()
-  contracts = lib.scan(cfg.codeDirs)
+  contracts = lib.current() -- published by the events service every 20 s
 end
 
 local function openRepo(path: string)
@@ -69,11 +67,10 @@ local function render()
   }))
 end
 
-function update()
-  noctalia.setUpdateInterval(REFRESH_MS)
+noctalia.state.watch("km.cards", function()
   scan()
   render()
-end
+end)
 
 scan()
 render()

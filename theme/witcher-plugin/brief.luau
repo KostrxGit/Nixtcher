@@ -79,6 +79,7 @@ local function render()
   table.insert(body, section(cfg.city or "Weather", "sunrise", w))
 
   -- contracts
+  local PHRASE = { changes = "to fix", working = "in progress", review = "in review", todo = "to do" }
   local counts = { changes = 0, working = 0, review = 0, todo = 0 }
   for _, c in contracts do
     if counts[c.key] then
@@ -93,7 +94,7 @@ local function render()
     local parts = {}
     for _, k in { "changes", "working", "review", "todo" } do
       if counts[k] > 0 then
-        table.insert(parts, `{counts[k]} {string.lower(contractsLib.STATUS[k].label)}`)
+        table.insert(parts, `{counts[k]} {PHRASE[k]}`)
       end
     end
     table.insert(cl, line(table.concat(parts, "  ·  ")))
@@ -234,7 +235,7 @@ end
 
 function onOpen(_context)
   weather = nil
-  contracts = contractsLib.scan(cfg.codeDirs)
+  contracts = contractsLib.current()
   checkRepos()
   fetchWeather()
   render()

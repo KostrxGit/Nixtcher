@@ -45,6 +45,15 @@
   # (opens ports 1714-1764 on the firewall; the daemon runs per user, see modules/home/apps.nix)
   programs.kdeconnect.enable = true;
 
+  # btop reads the Intel GPU's load through the kernel's perf counters, which needs
+  # CAP_PERFMON. This wrapper (/run/wrappers/bin/btop, first on PATH) gives it just that.
+  security.wrappers.btop = {
+    owner = "root";
+    group = "root";
+    capabilities = "cap_perfmon+ep";
+    source = "${pkgs.btop}/bin/btop";
+  };
+
   services.gvfs.enable = true; # trash, mounts in Nautilus
   services.udisks2.enable = true;
 }

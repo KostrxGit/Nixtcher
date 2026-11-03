@@ -17,6 +17,7 @@
     ./witcher.nix
     ./kaer-morhen.nix
     ./sigurd.nix
+    ./python.nix
   ];
 
   home = {

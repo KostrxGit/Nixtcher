@@ -12,11 +12,11 @@ Open it again any time with **Super + G**.
 | In Kaer Morhen | On your machine | What it does |
 |---|---|---|
 | **The alderman** | `manager` | Listens to your request, asks questions, posts **contracts** (task cards) on the notice board. Never touches the code. |
-| **The notice board** | `docs/tasks/NNN-*.md` | One card per job: goal, steps, files, acceptance criteria. Also shown on your desktop as the **Contracts** card. |
-| **A witcher** | `task start NNN` | A coding agent that takes one contract and works it in its own camp. |
-| **The witcher's camp** | `.claude/worktrees/task-NNN` | A separate copy of the repo (git worktree). Your own checkout stays untouched. |
-| **The trophy inspection** | `task review NNN` | A reviewer agent compares the work with the contract and writes its verdict into the card. |
-| **The coin** | `task diff NNN` → commit | **You** read the changes and commit them yourself. No agent can commit, push or merge. |
+| **The notice board** | `docs/tasks/TIN-1234-01-*.md` | One card per job: goal, steps, files, acceptance criteria. Also shown on your desktop as the **Contracts** card. |
+| **A witcher** | `task start TIN-1234-01` | A coding agent that takes one contract and works it in its own camp. |
+| **The witcher's camp** | `.claude/worktrees/TIN-1234-01` | A separate copy of the repo (git worktree). Your own checkout stays untouched. |
+| **The trophy inspection** | `task review TIN-1234-01` | A reviewer agent compares the work with the contract, writes its verdict into the card and, if it approves, gives you the commit and merge commands. |
+| **The coin** | commit + merge | **You** read the changes and commit them yourself. No agent can commit, push or merge. |
 
 ---
 
@@ -37,61 +37,83 @@ Open it again any time with **Super + G**.
 ## The contract cycle
 
 ```
-  you ──▶ manager ──▶ docs/tasks/003-login.md ──▶ task start 003 ──▶ agent works
-                                                                         │
-  merge ◀── you commit ◀── task diff 003 ◀── task review 003 ◀───────────┘
+  Linear TIN-1234 ─▶ git switch feat/TIN-1234 ─▶ manager ─▶ docs/tasks/TIN-1234-01-login.md
+                                                                     │
+  you run the printed commands ◀── task review TIN-1234-01 ◀── task start TIN-1234-01
 ```
 
 **1. Post the contract**
 ```
+git switch -c feat/TIN-1234     # or fix/TIN-1234: the problem branch
 manager
 ```
-Describe what you want in plain words. The alderman asks questions, then writes one or
-more cards and tells you which can run **in parallel** and which must **wait**.
-Read the card before you start it. Edit it by hand if something is off.
+Paste the Linear issue and talk it through. The alderman asks questions, then writes
+cards named after the issue (`TIN-1234-01`, `TIN-1234-02` …) and tells you which can run
+**in parallel** and which must **wait**. Read each card before you start it.
 
 **2. Send a witcher**
 ```
-task start 003
+task start TIN-1234-01
 ```
-A new terminal window opens with the coding agent, in its own worktree.
+A new window opens with the coding agent in its own worktree (`.claude/worktrees/TIN-1234-01`)
+on branch `TIN-1234-task-01`, branched off the branch you have checked out right now. The card
+remembers that branch (`base:`). Running `task start` again reopens the same worktree.
 It **asks before** running commands or editing. Answer in that window:
 - **Enter / 1**: yes, this once
 - **2**: yes, and don't ask again for this kind of action (this session)
 - **Esc**: no / stop. Then tell it what to do instead.
 
-When it needs you, the **wolf medallion** in the bar starts humming.
-When it finishes a turn, the **pup** hops.
+The agent ticks the card's checkboxes as it goes; the **ledger** (Super + Shift + L) shows the progress.
+When it needs you, the **wolf medallion** hums. When it finishes a turn, the **pup** hops.
 
 **3. Inspect the trophy**
 ```
-task review 003
+task review TIN-1234-01
 ```
 The reviewer checks the diff against the card and writes its verdict into the card.
-- *Approved*: go to step 4.
-- *Changes requested*: open `manager` again, show it the verdict, it updates the card;
-  then `task start 003` again.
+- *Approved*: it ends with the exact commands for step 4.
+- *Changes requested*: show the verdict to the manager (it updates the card), then
+  `task start TIN-1234-01` again.
 
-**4. Pay the coin**
+**4. Pay the coin and bring the trophy home**
+The reviewer prints these (or run `task commands TIN-1234-01` yourself):
 ```
-task diff 003
-```
-Opens **lazygit** in the agent's worktree:
-`space` stage file · `c` commit · `↑ ↓` move · `enter` view the diff · `q` quit.
-
-**5. Bring the trophy home**
-```
-git worktree list              # shows the agent's branch name
-git merge <that-branch>        # in your main checkout
+cd .claude/worktrees/TIN-1234-01
+git add -A
+git commit -m "(TIN-1234)feat: Add login form"
+cd <repo>
+git switch feat/TIN-1234
+git merge --no-ff TIN-1234-task-01 -m "Merge TIN-1234-task-01: Add login form"
 git push
-task clean 003                 # removes the camp (the branch stays until you delete it)
+task clean TIN-1234-01          # removes the camp, marks the card done
+git branch -d TIN-1234-task-01
 ```
+`--no-ff` always makes a merge commit, so the history shows each card as one unit and the
+whole card can be reverted in one step. Want to look first? `task diff TIN-1234-01` opens
+lazygit in the worktree (`space` stage · `c` commit · `enter` diff · `q` quit).
+
+---
+
+## Who is who: windows for a card
+
+Every window working on a card carries its ID in the title and **the card's colour as a thick
+border**: card 01 sky blue, 02 amber, 03 moss green, 04 heather, 05 teal, 06 ember, 07 lichen,
+08 violet (09 starts over). Terminals for a card are dark glass tinted in its colour.
+
+| Command | Opens |
+|---|---|
+| `task start TIN-1234-01` | the coding agent: `TIN-1234-01 · coder` |
+| `task review TIN-1234-01` | the reviewer: `TIN-1234-01 · review` |
+| `task term TIN-1234-01` | a terminal in the card's worktree: `TIN-1234-01 · terminal` |
+| `task code TIN-1234-01` | VS Code on the card's worktree |
+
+Older cards without an issue (`003-login.md`) still work: `task start 003`, branch `task-003`.
 
 ---
 
 ## Several witchers at once
 
-- Start cards that touch **different files** together: `task start 004`, `task start 005`.
+- Start cards that touch **different files** together: `task start TIN-1234-02`, `task start TIN-1234-03`.
   Each gets its own window and its own worktree; they cannot step on each other.
 - Cards that touch the same files: one after the other (the manager tells you which).
 - `task list` shows every card with its status and every open worktree.
@@ -150,6 +172,11 @@ Every agent works with two blades you don't have to think about:
 | **Encounters** | About five a day a card appears in the top-right corner: a **merchant** with a daily challenge the system checks for you, a **monster contract** (a small real task; mark it *Slain* when done), a **traveller** with a saying or a tip, or a rare **badge** for something you did. Never during focus, when idle or locked. *Not now* or closing the card dismisses it. `encounters off` / `on` pauses them, `encounters now` summons one |
 | **Bestiary** | **Super + Shift + A** or `bestiary`: your crowns, today's challenge, open contracts, badges and every creature you've met. Frequency and hours live in `modules/home/kaer-morhen.nix` → `encounters` |
 | **Wallpapers** | **Super + Alt + W** next, **+ Shift** back, or `wall keep` / `wall list`. The choice is remembered and still gets the dawn / dusk / night tint. Add one: put it in `theme/wallpapers/`, add a line to `wallpaperList` in `modules/home/kaer-morhen.nix` |
+| **Ledger** | **Super + Shift + L** (or `ledger` in the launcher): your **Linear issues**, each with its title, a progress bar of finished cards, what's waiting (to fix · in review · in progress · to do) and the projects it touches. Click an issue to see its open cards. Cards without an issue are listed per project at the bottom. Approved and done cards count as finished. Give an old card an issue by adding `issue: TIN-1234` and `issue-title: …` to its front matter |
+| **Task manager** | **Super + Shift + Esc** opens btop: CPU per core, memory, Intel GPU, network, and the process list (heaviest CPU first). Keys: `↑ ↓` select · `c` / `m` sort by CPU / memory (also `←` `→`) · `f` filter by name · `k` kill the selected process · `q` close |
+| **Python** | `py script.py` from anywhere in a repo: finds or creates its `.venv`, installs `requirements.txt` / `pyproject.toml` when they change, runs the script. `py` alone opens a Python prompt; `py add requests` installs and records a package; `py fresh` rebuilds the venv |
+| **The satchel** | In the launcher (Super + Space), type `/witcher` for every Kaer Morhen command, or just a word: `focus`, `bestiary`, `griffin`, `novigrad`, `sigurd` |
+| **Power menu** | Super + Shift + E: Rest by the fire (lock), Leave the keep (log out), Meditate (suspend), Return to Kaer Morhen (reboot), Blow out the candles (shut down). Keys 1-5 |
 | **Your phone** | KDE Connect: install it on Android, open the KDE Connect icon in the bar's tray and pair. Phone notifications then show up here |
 
 ---
@@ -197,7 +224,7 @@ Edit them there; no rebuild needed.
 repeated commands like running tests.
 
 **Wraith in the camp**: *a leftover worktree.* `task list` shows camps for finished work.
-→ `task clean NNN`, then `git branch -d <branch>` once it is merged.
+→ `task clean <ID>`, then `git branch -d <branch>` once it is merged.
 
 **Botchling**: *the agent says "done" but the tests fail.* → `task review` catches it.
 Paste the failing output back into the agent's window.
@@ -212,10 +239,12 @@ clear acceptance criteria come back finished.
 | Command | Does |
 |---|---|
 | `manager` | Plan with Claude; writes contract cards |
-| `task start NNN` | Send a coding agent on card NNN |
-| `task review NNN` | Reviewer checks the work |
-| `task diff NNN` | Lazygit in the agent's worktree: review and commit |
-| `task clean NNN` | Remove the worktree after merging |
+| `task start ID` | Send a coding agent on card ID (e.g. TIN-1234-01) |
+| `task review ID` | Reviewer checks the work, prints commit + merge commands |
+| `task commands ID` | Print the commit, `--no-ff` merge and clean-up commands |
+| `task term ID` / `task code ID` | Terminal / VS Code on the card's worktree |
+| `task diff ID` | Lazygit in the agent's worktree |
+| `task clean ID` | Remove the worktree after merging (card → done) |
 | `task list` | Cards and worktrees in this repo |
 | `claude agents` | All running agents |
 | `codework` / `codepersonal` | Jump to a repo |
