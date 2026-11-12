@@ -12,13 +12,6 @@
       push.autoSetupRemote = true;
       rerere.enabled = true;
     };
-    # Work repos get the work email automatically
-    includes = [
-      {
-        condition = "gitdir:~/code/work/";
-        contents.user.email = settings.git.workEmail;
-      }
-    ];
     ignores = [
       ".direnv/"
       ".envrc.local"
@@ -29,5 +22,9 @@
   programs.delta = {
     enable = true;
     enableGitIntegration = true;
+  };
+  programs.gh = {
+    enable = true;
+    gitCredentialHelper.enable = true;
   };
 }

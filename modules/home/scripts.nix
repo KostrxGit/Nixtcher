@@ -69,6 +69,10 @@ let
       gnused
       gawk
       lazygit
+      jq
+      procps
+      util-linux
+      libnotify
     ];
     text = ''
       usage() {
@@ -86,7 +90,17 @@ let
       EOF
       }
 
-      root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "Not in a git repo"; exit 1; }
+      # The main checkout, also when run from inside a card's worktree. The Stop hook passes the
+      # agent's directory as JSON on stdin (task auto).
+      cmd=''${1:-}
+      if [ "$cmd" = auto ]; then
+        hookInput=$(cat 2>/dev/null || true)
+        here=$(jq -r '.cwd // empty' <<<"$hookInput" 2>/dev/null || true); here=''${here:-$PWD}
+        case "$here" in */.claude/worktrees/*) ;; *) exit 0 ;; esac # not a card's agent
+        cd "$here" 2>/dev/null || exit 0
+      fi
+      common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || { echo "Not in a git repo"; exit 1; }
+      root=$(dirname "$common")
       cd "$root"
 
       TINTS=(${lib.escapeShellArgs (map (c: c.tint) cards)})
@@ -124,8 +138,99 @@ let
       }
       needWorktree() { [ -d "$1" ] || { echo "No worktree $1 (run: task start $2)"; exit 1; }; }
 
-      cmd=''${1:-}
+      # ── launching agents (Opus, auto mode: safe actions run, risky ones are blocked or asked;
+      #    the deny list in ~/.claude/settings.json always wins) ──
+      MAX_FIX_ROUNDS=2
+      launchCoder() { # $1 card ID, $2 fix round (0 = first run)
+        local f d title prompt
+        f=$(card "$1"); d=$(wt "$1")
+        if [ "''${2:-0}" -gt 0 ]; then
+          title="coder (fix $2)"
+          prompt="Card $1: the reviewer asked for changes (fix round $2 of $MAX_FIX_ROUNDS). Read the latest '## Review' section of the card $f and fix exactly those points, then run the acceptance checks, update '## Result' and set status: review."
+        else
+          title="coder"
+          prompt="Implement the task card $f (card $1). Read it first and follow it exactly."
+        fi
+        mapfile -t lookArgs < <(look "$1" "$title")
+        # Cards are usually uncommitted, so the agent reads them from the main checkout.
+        # `--` ends the options: --add-dir takes several values and would eat the prompt.
+        setsid env KM_ROLE=coder ghostty --working-directory="$d" "''${lookArgs[@]}" -e \
+          claude --agent coder --model opus --permission-mode auto -n "$1 · $title" \
+          --add-dir "$root/docs/tasks" -- "$prompt" >/dev/null 2>&1 </dev/null &
+        disown
+      }
+      launchReviewer() { # $1 card ID
+        local f d base
+        f=$(card "$1"); d=$(wt "$1"); base=$(field "$f" base)
+        mapfile -t lookArgs < <(look "$1" review)
+        setsid env KM_ROLE=reviewer ghostty --working-directory="$d" "''${lookArgs[@]}" -e \
+          claude --agent reviewer --model opus --permission-mode auto -n "$1 · review" \
+          --add-dir "$root/docs/tasks" \
+          -- "Review card $1: the changes in this worktree ($d, branch $(branchOf "$1"), started from ''${base:-the branch it was started from}) against the card $f. If you approve, finish with the output of: task commands $1" \
+          >/dev/null 2>&1 </dev/null &
+        disown
+      }
+
+      # ── the automatic loop (task auto, run by the Stop hook after every agent turn) ──
+      # Per worktree it remembers "<fix rounds used> <last status handled>", so each step runs once.
+      stateFile() { echo "$(git -C "$1" rev-parse --absolute-git-dir)/kaer-morhen-auto"; }
+      # End the agent session that ran this hook; its window closes with it. Only an ancestor
+      # process that is a claude session named "<card ID> · <role>" (as launched above) qualifies.
+      closeSelf() { # $1 card ID, $2 role title prefix (coder / review)
+        local pid=$$ cmdline _
+        for _ in 1 2 3 4 5 6; do
+          pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+          [ -n "$pid" ] && [ "$pid" -gt 1 ] || return 0
+          cmdline=$(tr '\0' '\n' <"/proc/$pid/cmdline" 2>/dev/null || true)
+          if grep -q 'claude' <<<"$cmdline" && grep -qxF -- "-n" <<<"$cmdline" &&
+            grep -qx -- "$1 · $2.*" <<<"$cmdline"; then
+            setsid sh -c "sleep 4; kill -TERM $pid" >/dev/null 2>&1 </dev/null &
+            return 0
+          fi
+        done
+      }
+      tell() { # $1 title, $2 message, $3 witcher event
+        notify-send -a "Kaer Morhen" "$1" "$2" >/dev/null 2>&1 || true
+        if command -v sigurd >/dev/null; then sigurd say "$1: $2" >/dev/null 2>&1 || true; fi
+        if command -v witcher >/dev/null; then witcher "$3" "$1" >/dev/null 2>&1 || true; fi
+      }
+      autoStep() { # $1 card ID, $2 role of the session that just stopped (coder/reviewer)
+        local d f st sf round=0 last=""
+        d=$(wt "$1"); [ -d "$d" ] || return 0
+        f=$(card "$1" 2>/dev/null) || return 0
+        st=$(field "$f" status)
+        sf=$(stateFile "$d")
+        if [ -f "$sf" ]; then read -r round last <"$sf" || true; fi
+        round=''${round:-0}
+        [ "$st" != "$last" ] || return 0 # already handled
+        case "$2:$st" in
+          coder:review)
+            echo "$round review" >"$sf"
+            launchReviewer "$1"
+            closeSelf "$1" coder
+            ;;
+          reviewer:changes-requested)
+            if [ "$round" -lt "$MAX_FIX_ROUNDS" ]; then
+              round=$((round + 1))
+              echo "$round changes-requested" >"$sf"
+              launchCoder "$1" "$round"
+              closeSelf "$1" review
+            else
+              echo "$round changes-requested" >"$sf"
+              tell "$1 needs you" "Still not right after $MAX_FIX_ROUNDS fixes. Read the review; task start $1 runs one more round." agent
+            fi
+            ;;
+          reviewer:approved)
+            echo "$round approved" >"$sf"
+            tell "$1 approved" "Ready for your commit and merge (task commands $1)." agent-done
+            ;;
+        esac
+      }
+
       n=''${2:-}; n=''${n#task-}
+      # the card whose worktree the hook ran in: .claude/worktrees/TIN-1234-01 or task-003
+      hereId=""
+      if [ "$cmd" = auto ]; then hereId=''${here#*/.claude/worktrees/}; hereId=''${hereId%%/*}; hereId=''${hereId#task-}; fi
       case "$cmd" in
         list)
           echo "Cards:"
@@ -139,7 +244,7 @@ let
           [ -n "$n" ] || { usage; exit 1; }
           f=$(card "$n"); d=$(wt "$n"); b=$(branchOf "$n")
           # The worktree branches off what you have checked out now. Running start again
-          # reuses it, e.g. after a review asked for changes.
+          # reuses it, e.g. after a review asked for changes (counts as one more fix round).
           if [ ! -d "$d" ]; then
             base=$(git branch --show-current); base=''${base:-HEAD}
             exclude=$(git rev-parse --git-path info/exclude)
@@ -154,25 +259,26 @@ let
               echo "Worktree $d on new branch $b (from $base)."
             fi
           fi
-          mapfile -t lookArgs < <(look "$n" coder)
-          # Cards are usually uncommitted, so the agent reads them from the main checkout.
-          # `--` ends the options: --add-dir takes several values and would eat the prompt.
-          ghostty --working-directory="$d" "''${lookArgs[@]}" -e claude --agent coder -n "$n · coder" \
-            --add-dir "$root/docs/tasks" \
-            -- "Implement the task card $f (card $n). Read it first and follow it exactly." &
-          disown
-          echo "Coding agent for $n opened in a new window."
+          round=0
+          sf=$(stateFile "$d")
+          if [ -f "$sf" ]; then read -r round _ <"$sf" || true; fi
+          if [ "$(field "$f" status)" = "changes-requested" ]; then
+            round=$((''${round:-0} + 1)) # you asked for another round
+            echo "$round manual" >"$sf"
+          fi
+          launchCoder "$n" "''${round:-0}"
+          echo "Coding agent for $n opened in a new window. The review starts by itself when it's done."
           ;;
         review)
           [ -n "$n" ] || { usage; exit 1; }
-          f=$(card "$n"); d=$(wt "$n"); needWorktree "$d" "$n"
-          base=$(field "$f" base)
-          mapfile -t lookArgs < <(look "$n" review)
-          ghostty --working-directory="$d" "''${lookArgs[@]}" -e claude --agent reviewer -n "$n · review" \
-            --add-dir "$root/docs/tasks" \
-            -- "Review card $n: the changes in this worktree ($d, branch $(branchOf "$n"), started from ''${base:-the branch it was started from}) against the card $f. If you approve, finish with the output of: task commands $n" &
-          disown
+          d=$(wt "$n"); needWorktree "$d" "$n"
+          launchReviewer "$n"
           echo "Reviewer for $n opened in a new window."
+          ;;
+        auto)
+          n=''${hereId:-}
+          [ -n "$n" ] && [ -n "''${KM_ROLE:-}" ] || exit 0 # only sessions started by task
+          autoStep "$n" "$KM_ROLE"
           ;;
         term)
           [ -n "$n" ] || { usage; exit 1; }

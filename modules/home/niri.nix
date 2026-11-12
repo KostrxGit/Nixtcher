@@ -218,6 +218,13 @@ in
         default-column-width { fixed 1040; }
         default-window-height { fixed 840; }
         draw-border-with-background false
+    }
+    window-rule {
+        match app-id="^dev\\.quicknote$"
+        open-floating true
+        default-column-width { fixed 760; }
+        default-window-height { fixed 130; }
+        draw-border-with-background false
         background-effect {
             blur true
             xray false
@@ -278,6 +285,7 @@ in
         Mod+M hotkey-overlay-title="Focus session (Vesna meditates)" { spawn "focus"; }
         Mod+Shift+B hotkey-overlay-title="Morning brief" { spawn "brief"; }
         Mod+Shift+A hotkey-overlay-title="Bestiary" { spawn "bestiary"; }
+        Mod+Shift+N hotkey-overlay-title="Quick note" { spawn "ghostty" "--class=dev.quicknote" "--title=Quick note" "--theme=night" "-e" "note"; }
         Mod+Shift+L hotkey-overlay-title="Ledger: tasks and progress" { spawn-sh "noctalia msg panel-toggle konstanty/kaer-morhen:ledger-book"; }
         Mod+Alt+W hotkey-overlay-title="Next wallpaper" { spawn "wall" "next"; }
         Mod+Alt+Shift+W hotkey-overlay-title="Previous wallpaper" { spawn "wall" "prev"; }

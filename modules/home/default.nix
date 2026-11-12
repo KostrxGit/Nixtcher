@@ -3,6 +3,7 @@
   imports = [
     ./niri.nix
     ./noctalia.nix
+    ./lock.nix
     ./terminal.nix
     ./shell.nix
     ./git.nix

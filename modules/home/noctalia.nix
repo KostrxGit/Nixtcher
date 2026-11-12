@@ -1,5 +1,6 @@
 # Noctalia 5: bar, launcher, control centre, notifications, OSD, wallpaper,
-# lock screen and idle — one shell instead of Waybar/Fuzzel/Mako/hyprlock/swaybg/swayidle.
+# and idle — one shell instead of Waybar/Fuzzel/Mako/swaybg. The lock screen is medallion-lock
+# (lock.nix); Noctalia's own is off.
 #
 # This file is the base config. Changes made in Noctalia's own Settings window are saved to
 # ~/.local/state/noctalia/settings.toml and override this file; delete that file to reset.
@@ -171,8 +172,9 @@ in
         border_color = glassBorder;
       };
 
+      # Off: medallion-lock locks instead (lock.nix), also before suspend.
       lockscreen = {
-        enabled = true;
+        enabled = false;
         transition = [ "fade" ];
         transition_duration = 600;
         blur_intensity = 0.8;
@@ -192,7 +194,8 @@ in
         behavior = {
           lock = {
             timeout = 600;
-            action = "lock";
+            action = "command";
+            command = "lock";
             enabled = true;
           };
           screen-off = {
@@ -200,9 +203,11 @@ in
             action = "screen_off";
             enabled = true;
           };
+          # swayidle locks before the suspend (lock.nix)
           suspend = {
             timeout = 1800;
-            action = "lock_and_suspend";
+            action = "command";
+            command = "systemctl suspend";
             enabled = true;
           };
         };

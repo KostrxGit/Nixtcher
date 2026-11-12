@@ -5,6 +5,7 @@
     inputs.nixos-hardware.nixosModules.lenovo-thinkpad-x1-yoga-7th-gen
     inputs.home-manager.nixosModules.home-manager
     inputs.stylix.nixosModules.stylix
+    inputs.medallion-lock.nixosModules.default
 
     (import ./disko.nix { disk = settings.disk; })
     ./hardware-configuration.nix

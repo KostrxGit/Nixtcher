@@ -20,6 +20,13 @@
     };
 
     nixos-hardware.url = "github:NixOS/nixos-hardware";
+
+    # Lock screen (local repo; builds its last commit: commit there, then
+    # `nix flake update medallion-lock` here)
+    medallion-lock = {
+      url = "git+file:///home/konstanty/dev/medallion-lock";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =

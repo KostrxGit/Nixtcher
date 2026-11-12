@@ -44,6 +44,7 @@
   # KDE Connect with an Android phone: notifications, files, clipboard, remote input
   # (opens ports 1714-1764 on the firewall; the daemon runs per user, see modules/home/apps.nix)
   programs.kdeconnect.enable = true;
+  programs.dconf.enable = true; # settings store for GTK apps (Folio's notes folder)
 
   # btop reads the Intel GPU's load through the kernel's perf counters, which needs
   # CAP_PERFMON. This wrapper (/run/wrappers/bin/btop, first on PATH) gives it just that.

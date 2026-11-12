@@ -51,29 +51,33 @@ Paste the Linear issue and talk it through. The alderman asks questions, then wr
 cards named after the issue (`TIN-1234-01`, `TIN-1234-02` …) and tells you which can run
 **in parallel** and which must **wait**. Read each card before you start it.
 
-**2. Send a witcher**
+**2. Send a witcher, and let the contract run**
 ```
 task start TIN-1234-01
 ```
 A new window opens with the coding agent in its own worktree (`.claude/worktrees/TIN-1234-01`)
 on branch `TIN-1234-task-01`, branched off the branch you have checked out right now. The card
-remembers that branch (`base:`). Running `task start` again reopens the same worktree.
-It **asks before** running commands or editing. Answer in that window:
-- **Enter / 1**: yes, this once
-- **2**: yes, and don't ask again for this kind of action (this session)
-- **Esc**: no / stop. Then tell it what to do instead.
+remembers that branch (`base:`).
+
+From here the contract runs by itself:
+```
+coder ─▶ card "review" ─▶ reviewer opens by itself
+              ▲                    │
+              └── changes needed ◀─┤  (at most 2 fix rounds, automatically)
+                                   ▼
+                    approved: 🔔 "ready for your commit"
+```
+- Each finished window closes when the next step opens. The final reviewer stays open:
+  it shows the verdict and, when approved, your commit and merge commands.
+- Still not right after **2 fixes**? It stops and tells you (🔔 + Sigurd). Read the review;
+  `task start TIN-1234-01` runs one more round, or take the card back to the manager.
+- Agents run on **Opus** in **auto mode**: safe actions (editing in the worktree, tests, lint)
+  just happen; risky ones are blocked. `rm`, `docker`, `nix` and new dependencies still ask
+  you, and commit / push / merge / `sudo` / `.env` stay forbidden. When an agent does need
+  you, the **medallion hums**.
+- Want to step in? `task review TIN-1234-01` starts a review by hand at any time.
 
 The agent ticks the card's checkboxes as it goes; the **ledger** (Super + Shift + L) shows the progress.
-When it needs you, the **wolf medallion** hums. When it finishes a turn, the **pup** hops.
-
-**3. Inspect the trophy**
-```
-task review TIN-1234-01
-```
-The reviewer checks the diff against the card and writes its verdict into the card.
-- *Approved*: it ends with the exact commands for step 4.
-- *Changes requested*: show the verdict to the manager (it updates the card), then
-  `task start TIN-1234-01` again.
 
 **4. Pay the coin and bring the trophy home**
 The reviewer prints these (or run `task commands TIN-1234-01` yourself):
@@ -174,6 +178,7 @@ Every agent works with two blades you don't have to think about:
 | **Wallpapers** | **Super + Alt + W** next, **+ Shift** back, or `wall keep` / `wall list`. The choice is remembered and still gets the dawn / dusk / night tint. Add one: put it in `theme/wallpapers/`, add a line to `wallpaperList` in `modules/home/kaer-morhen.nix` |
 | **Ledger** | **Super + Shift + L** (or `ledger` in the launcher): your **Linear issues**, each with its title, a progress bar of finished cards, what's waiting (to fix · in review · in progress · to do) and the projects it touches. Click an issue to see its open cards. Cards without an issue are listed per project at the bottom. Approved and done cards count as finished. Give an old card an issue by adding `issue: TIN-1234` and `issue-title: …` to its front matter |
 | **Task manager** | **Super + Shift + Esc** opens btop: CPU per core, memory, Intel GPU, network, and the process list (heaviest CPU first). Keys: `↑ ↓` select · `c` / `m` sort by CPU / memory (also `←` `→`) · `f` filter by name · `k` kill the selected process · `q` close |
+| **Notes** | **Folio** (launcher: "Folio") keeps notebooks in `~/Notes`: each folder is a notebook, each `.md` file a note. **Super + Shift + N** opens a small box: type a line, Enter adds it to today's journal (`~/Notes/Journal/2026-11-12.md`, with the time). From a terminal: `note call the accountant` |
 | **Python** | `py script.py` from anywhere in a repo: finds or creates its `.venv`, installs `requirements.txt` / `pyproject.toml` when they change, runs the script. `py` alone opens a Python prompt; `py add requests` installs and records a package; `py fresh` rebuilds the venv |
 | **The satchel** | In the launcher (Super + Space), type `/witcher` for every Kaer Morhen command, or just a word: `focus`, `bestiary`, `griffin`, `novigrad`, `sigurd` |
 | **Power menu** | Super + Shift + E: Rest by the fire (lock), Leave the keep (log out), Meditate (suspend), Return to Kaer Morhen (reboot), Blow out the candles (shut down). Keys 1-5 |

@@ -432,6 +432,7 @@ in
     shell.session.actions = [
       {
         action = "lock";
+        command = "lock";
         label = "Rest by the fire";
         glyph = "flame";
         shortcut = "1";
@@ -444,6 +445,7 @@ in
       }
       {
         action = "lock_and_suspend";
+        command = "systemctl suspend"; # swayidle locks first (lock.nix)
         label = "Meditate";
         glyph = "moon";
         shortcut = "3";
@@ -477,12 +479,6 @@ in
       "notification"
       "power_profile"
     ];
-
-    # Blade on unlock, "welcome back", and the morning brief on the first unlock of the day
-    hooks = {
-      session_locked = "${lib.getExe witcher} locked";
-      session_unlocked = "${lib.getExe witcher} unlocked";
-    };
 
     # The pup naps after 2 minutes without input and wakes when you're back
     idle.behavior.pup-nap = {
